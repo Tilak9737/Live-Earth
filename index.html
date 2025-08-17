@@ -1,398 +1,525 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Hyper‑Realistic Live Earth + Moon — Single‑File</title>
-<meta name="description" content="A single‑file, real‑time, data‑driven 3D Earth + Moon with live UTC, accurate sun & subsolar point, atmosphere shader, and dashboard. Host on GitHub Pages." />
-<style>
-  html, body { height: 100%; margin: 0; background: #000; overflow: hidden; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
-  #app { position: fixed; inset: 0; }
-  /* HUD */
-  .hud { position: fixed; left: 16px; top: 16px; display: grid; gap: 8px; z-index: 10; color: #d7e7ff; }
-  .panel { backdrop-filter: blur(8px); background: rgba(6,16,40,.5); border: 1px solid rgba(136,176,255,.25); border-radius: 16px; padding: 12px 14px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
-  .title { font-weight: 700; letter-spacing: .4px; font-size: 14px; color: #9ec1ff; margin-bottom: 6px; text-transform: uppercase; }
-  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 10px; font-size: 13px; }
-  .kv span.key { color: #86a9ff; opacity: .9; }
-  .kv span.val { color: #e9f2ff; font-variant-numeric: tabular-nums; }
-  .badge { display:inline-flex; align-items:center; gap:8px; font-size: 12px; padding: 8px 10px; border-radius: 999px; background: rgba(0,20,60,.5); border: 1px solid rgba(136,176,255,.25); }
-  .footer { position: fixed; right: 16px; bottom: 16px; display:flex; gap:8px; align-items:center; z-index: 10; }
-  .btn { cursor: pointer; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(136,176,255,.25); color: #cfe0ff; background: rgba(6,16,40,.6); backdrop-filter: blur(6px); font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
-  .btn:hover { background: rgba(20,40,90,.7); }
-  .small { font-size: 11px; opacity: .8; }
-  .top-right { position: fixed; right: 16px; top: 16px; z-index: 10; display: flex; gap: 8px; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-  .credits { position: fixed; left: 16px; bottom: 16px; color: #9fb8ff; font-size: 11px; opacity: .8; z-index: 10; }
-  @media (max-width: 640px) {
-    .kv { font-size: 12px; }
-    .panel { padding: 10px 12px; }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyper-Realistic Live Earth Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #fff;
+            height: 100vh;
+        }
+        
+        #container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #dashboard {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 20, 30, 0.85);
+            border-radius: 15px;
+            padding: 20px;
+            width: 350px;
+            box-shadow: 0 0 20px rgba(0, 100, 255, 0.5);
+            border: 1px solid rgba(64, 156, 255, 0.3);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+        }
+        
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(64, 156, 255, 0.3);
+        }
+        
+        .dashboard-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #4ca6ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .dashboard-subtitle {
+            font-size: 0.8rem;
+            color: #7fdbff;
+            opacity: 0.8;
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .data-item {
+            padding: 12px;
+            background: rgba(20, 40, 60, 0.6);
+            border-radius: 8px;
+            border: 1px solid rgba(64, 156, 255, 0.2);
+        }
+        
+        .data-label {
+            font-size: 0.75rem;
+            color: #7fdbff;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .data-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .data-unit {
+            font-size: 0.8rem;
+            color: #7fdbff;
+            margin-left: 3px;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 1s;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(76, 166, 255, 0.3);
+            border-top: 5px solid #4ca6ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        .loading-text {
+            font-size: 1.2rem;
+            color: #7fdbff;
+            text-align: center;
+            max-width: 300px;
+        }
+        
+        .loading-progress {
+            width: 300px;
+            height: 6px;
+            background: rgba(76, 166, 255, 0.2);
+            border-radius: 3px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        
+        .loading-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0066ff, #00ccff);
+            transition: width 0.3s;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #time-display {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(10, 20, 30, 0.85);
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-size: 1.4rem;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 0 15px rgba(0, 100, 255, 0.4);
+            border: 1px solid rgba(64, 156, 255, 0.3);
+            backdrop-filter: blur(5px);
+        }
+        
+        .controls-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(10, 20, 30, 0.85);
+            border-radius: 10px;
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            color: #7fdbff;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(64, 156, 255, 0.3);
+        }
+        
+        .earth-stats {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 20, 30, 0.85);
+            border-radius: 15px;
+            padding: 15px;
+            width: 280px;
+            box-shadow: 0 0 20px rgba(0, 150, 100, 0.3);
+            border: 1px solid rgba(0, 200, 150, 0.3);
+            backdrop-filter: blur(5px);
+        }
+        
+        .earth-stats-title {
+            font-size: 1.1rem;
+            color: #00d9a6;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .stat-item {
+            padding: 8px;
+            background: rgba(10, 40, 30, 0.6);
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #00ffbb;
+            margin-bottom: 3px;
+        }
+        
+        .stat-label {
+            font-size: 0.7rem;
+            color: #7fdbff;
+        }
+    </style>
 </head>
 <body>
-<div id="app"></div>
-<div class="hud">
-  <div class="panel">
-    <div class="title">Live Dashboard</div>
-    <div class="kv mono" id="kv">
-      <span class="key">UTC</span><span class="val" id="utc">—</span>
-      <span class="key">Observer</span><span class="val" id="observer">—</span>
-      <span class="key">Subsolar</span><span class="val" id="subsolar">—</span>
-      <span class="key">Altitude</span><span class="val" id="alt">—</span>
-      <span class="key">Orbital v</span><span class="val" id="orbv">—</span>
+    <div id="loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Initializing Hyper-Realistic Earth Simulation</div>
+        <div class="loading-progress">
+            <div class="loading-progress-bar" id="progress-bar"></div>
+        </div>
     </div>
-  </div>
-  <div class="badge small mono">Rotate: LMB • Pan: RMB • Zoom: Wheel</div>
-</div>
-<div class="top-right">
-  <button class="btn" id="toggleClouds">Clouds</button>
-  <button class="btn" id="toggleStars">Stars</button>
-  <button class="btn" id="resetView">Home</button>
-</div>
-<div class="footer">
-  <button class="btn" id="perf">Perf Mode</button>
-</div>
-<div class="credits small">Data-driven demo • Textures: NASA/NOAA/USGS/JPL/ESO • Code: single-file • <span class="mono">J2000</span> solar calc</div>
+    
+    <div id="container"></div>
+    
+    <div id="dashboard">
+        <div class="dashboard-header">
+            <div>
+                <div class="dashboard-title">LIVE EARTH DATA</div>
+                <div class="dashboard-subtitle">Real-time Planetary Telemetry</div>
+            </div>
+            <div class="dashboard-subtitle">ACTIVE</div>
+        </div>
+        <div class="data-grid">
+            <div class="data-item">
+                <div class="data-label">Observer Position</div>
+                <div class="data-value">0.000°N, 0.000°E</div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Subsolar Point</div>
+                <div class="data-value">0.000°N, 0.000°E</div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Simulated Altitude</div>
+                <div class="data-value">35,786<span class="data-unit">km</span></div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Orbital Velocity</div>
+                <div class="data-value">3.075<span class="data-unit">km/s</span></div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Terminator Angle</div>
+                <div class="data-value">23.5<span class="data-unit">°</span></div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Solar Intensity</div>
+                <div class="data-value">1,361<span class="data-unit">W/m²</span></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="time-display">UTC: 00:00:00</div>
+    
+    <div class="controls-hint">
+        Mouse: Rotate | Wheel: Zoom | Drag: Pan
+    </div>
+    
+    <div class="earth-stats">
+        <div class="earth-stats-title">EARTH STATISTICS</div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value">7,917</div>
+                <div class="stat-label">DIAMETER (mi)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">23.5°</div>
+                <div class="stat-label">AXIAL TILT</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">29.78</div>
+                <div class="stat-label">ORBITAL SPEED (km/s)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">365.25</div>
+                <div class="stat-label">ORBITAL PERIOD (days)</div>
+            </div>
+        </div>
+    </div>
 
-<script type="module">
-// === Single-file Earth + Moon, real-time, for GitHub Pages ===
-// Uses three.js via CDN modules. You can host offline by inlining three.module.js and OrbitControls code.
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-
-// ---------- Constants & Utils ----------
-const DEG2RAD = Math.PI / 180; const RAD2DEG = 180 / Math.PI;
-const AU_KM = 149597870.7; // not directly used, but handy
-const EARTH_RADIUS_KM = 6378.137; // equatorial radius (km)
-const MU_EARTH = 398600.4418; // km^3/s^2
-const EARTH_RADIUS_UNITS = 1; // scene units: Earth radius = 1
-const KM_PER_UNIT = EARTH_RADIUS_KM / EARTH_RADIUS_UNITS; // km per scene unit
-
-// Moon scale & orbit (simplified real values)
-const MOON_RADIUS_REL = 0.2727; // ~1737.4 / 6378.1
-const MOON_DISTANCE_REL = 60.27; // mean Earth radii
-const MOON_SIDEREAL_DAYS = 27.321661; // days
-const MOON_INCLINATION = 5.145 * DEG2RAD; // to ecliptic
-
-// Earth axial tilt
-const EARTH_OBLIQUITY = 23.439281 * DEG2RAD; // J2000 obliquity
-
-// Wrap helpers
-const wrap180 = d => ((d + 180) % 360 + 360) % 360 - 180;
-const wrap360 = d => ((d % 360) + 360) % 360;
-
-// ---------- Solar position (NOAA-like, J2000) ----------
-// Returns RA (rad), Dec (rad), sunVector ECI (unit), and subsolar lat/lon (deg) using GMST.
-function julianDay(date) {
-  const t = date.getUTCMilliseconds() / 86400000 + date.getUTCSeconds() / 86400 + date.getUTCMinutes() / 1440 + date.getUTCHours() / 24 + date.getUTCDate();
-  const m = date.getUTCMonth() + 1; const y = date.getUTCFullYear();
-  const A = Math.floor((14 - m) / 12); const Y = y + 4800 - A; const M = m + 12 * A - 3;
-  return (date.getUTCMilliseconds(), Math.floor((153 * M + 2) / 5) + t + 365 * Y + Math.floor(Y / 4) - Math.floor(Y / 100) + Math.floor(Y / 400) - 32045);
-}
-function julianCenturies(jd) { return (jd - 2451545.0) / 36525.0; }
-function gmstDegrees(date) { // Greenwich Mean Sidereal Time in degrees [0..360)
-  const jd = julianDay(date); const T = (jd - 2451545.0)/36525.0;
-  const theta = 280.46061837 + 360.98564736629 * (jd - 2451545) + 0.000387933*T*T - T*T*T/38710000;
-  return wrap360(theta);
-}
-function sunPosition(date){
-  const jd = julianDay(date);
-  const T = julianCenturies(jd);
-  const L0 = wrap360(280.46646 + 36000.76983*T + 0.0003032*T*T) * DEG2RAD; // mean longitude
-  const M  = wrap360(357.52911 + 35999.05029*T - 0.0001537*T*T) * DEG2RAD; // mean anomaly
-  const e  = 0.016708634 - 0.000042037*T - 0.0000001267*T*T; // eccentricity
-  // Equation of center
-  const C = (1.914602 - 0.004817*T - 0.000014*T*T)*Math.sin(M) + (0.019993 - 0.000101*T)*Math.sin(2*M) + 0.000289*Math.sin(3*M);
-  const trueLong = L0 + C*DEG2RAD; // true ecliptic longitude (rad)
-  const eps = (23.439291 - 0.0130042*T) * DEG2RAD; // obliquity (rad)
-  const xs = Math.cos(trueLong);
-  const ys = Math.cos(eps)*Math.sin(trueLong);
-  const zs = Math.sin(eps)*Math.sin(trueLong);
-  let ra = Math.atan2(ys, xs); if (ra < 0) ra += 2*Math.PI; // [0,2π)
-  const dec = Math.asin(zs);
-  // Subsolar lat/lon
-  const gmst = gmstDegrees(date); // deg
-  const subsolarLat = dec * RAD2DEG;
-  const subsolarLon = wrap180(ra*RAD2DEG - gmst);
-  // Sun vector in ECI with x toward RA=0, z to celestial north
-  const sunECI = new THREE.Vector3(Math.cos(dec)*Math.cos(ra), Math.cos(dec)*Math.sin(ra), Math.sin(dec));
-  return { ra, dec, subsolarLat, subsolarLon, sunECI };
-}
-
-// Convert ECI to Earth-fixed (ECEF) by rotating about Z by GMST
-function eciToEcef(vec, date){
-  const gmst = gmstDegrees(date) * DEG2RAD; // rotate -gmst to go from ECI to ECEF
-  const c = Math.cos(gmst), s = Math.sin(gmst);
-  return new THREE.Vector3(c*vec.x + s*vec.y, -s*vec.x + c*vec.y, vec.z);
-}
-
-// Convert ECEF vector on Earth's surface to lat/lon
-function ecefToLatLon(vec){
-  const r = vec.clone().normalize();
-  const lat = Math.asin(r.z) * RAD2DEG;
-  const lon = Math.atan2(r.y, r.x) * RAD2DEG;
-  return { lat, lon };
-}
-
-// Nadir subpoint under camera (intersection of camera->center with sphere)
-function cameraSubpoint(camera){
-  const dir = new THREE.Vector3().copy(camera.position).normalize().multiplyScalar(-1); // toward origin
-  const surface = dir.clone(); // on unit sphere
-  const { lat, lon } = ecefToLatLon(surface);
-  return { lat, lon };
-}
-
-// Orbital velocity at altitude
-function orbitalVelocityKmPerSec(altKm){ return Math.sqrt(MU_EARTH / (EARTH_RADIUS_KM + Math.max(1, altKm))); }
-
-// Format helpers
-const f2 = n => n.toFixed(2); const f3 = n => n.toFixed(3);
-const fmtLat = v => `${Math.abs(v).toFixed(2)}° ${v>=0?'N':'S'}`;
-const fmtLon = v => `${Math.abs(v).toFixed(2)}° ${v>=0?'E':'W'}`;
-
-// ---------- Scene ----------
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-document.getElementById('app').appendChild(renderer.domElement);
-const scene = new THREE.Scene();
-
-// Stars (HDR-like background via large sphere with star texture)
-const starTex = new THREE.TextureLoader().load(
-  // ESO Milky Way panorama (reduce res if needed); CORS-enabled mirrors may vary.
-  'https://cdn.jsdelivr.net/gh/typpo/spacekit-assets@master/eso_milkyway/milkyway_2048.jpg'
-);
-const stars = new THREE.Mesh(
-  new THREE.SphereGeometry(1000, 64, 64),
-  new THREE.MeshBasicMaterial({ map: starTex, side: THREE.BackSide, depthWrite: false })
-);
-scene.add(stars);
-
-// Camera & Controls
-const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.001, 5000);
-camera.position.set(0, 3.2, 5.2); // start a bit off
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; controls.dampingFactor = 0.06;
-controls.minDistance = 1.02; // skimming
-controls.maxDistance = 200; // far orbit
-controls.enablePan = true; controls.target.set(0,0,0);
-
-// Lighting: use directional light from Sun, plus faint ambient
-const ambient = new THREE.AmbientLight(0x223244, 0.2); scene.add(ambient);
-const sunLight = new THREE.DirectionalLight(0xffffff, 1.35);
-scene.add(sunLight);
-
-// Group to hold Earth with axial tilt
-const earthGroup = new THREE.Group();
-// Tilt Earth's spin axis relative to ECI Z by obliquity around X
-const tilt = new THREE.Euler(EARTH_OBLIQUITY, 0, 0, 'XYZ');
-earthGroup.rotation.copy(tilt);
-scene.add(earthGroup);
-
-// Earth sphere with PBR-ish material
-const earthGeom = new THREE.SphereGeometry(EARTH_RADIUS_UNITS, 256, 128);
-const texLoader = new THREE.TextureLoader();
-
-// Textures (8K where possible). You can swap to your own repo URLs for full control.
-const texDay = texLoader.load('https://raw.githubusercontent.com/typpo/spacekit-assets/master/earth/8k_earth_daymap.jpg');
-const texNight = texLoader.load('https://raw.githubusercontent.com/typpo/spacekit-assets/master/earth/8k_earth_nightmap.jpg');
-const texClouds = texLoader.load('https://raw.githubusercontent.com/typpo/spacekit-assets/master/earth/fair_clouds_8k.png');
-const texBump = texLoader.load('https://raw.githubusercontent.com/typpo/spacekit-assets/master/earth/earthbump1k.jpg'); // Swap to 8k bump if needed
-const texSpec = texLoader.load('https://raw.githubusercontent.com/typpo/spacekit-assets/master/earth/earthspec1k.jpg');
-texDay.anisotropy = texNight.anisotropy = texClouds.anisotropy = texBump.anisotropy = texSpec.anisotropy = renderer.capabilities.getMaxAnisotropy?.() || 8;
-
-// Custom shader for day/night blending + specular + simple gamma
-const earthMat = new THREE.ShaderMaterial({
-  uniforms: {
-    dayTex: { value: texDay },
-    nightTex: { value: texNight },
-    bumpTex: { value: texBump },
-    specTex: { value: texSpec },
-    lightDir: { value: new THREE.Vector3(1,0,0) },
-    bumpScale: { value: 0.04 }, // visible terrain relief
-    shininess: { value: 30.0 },
-    ambientNight: { value: 0.06 }
-  },
-  vertexShader: `
-    varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv;
-    uniform sampler2D bumpTex; uniform float bumpScale;
-    void main(){
-      vUv = uv; vNormal = normalize(normalMatrix * normal);
-      vec3 pos = position;
-      // simple bump via normal perturbation from height map
-      float h = texture2D(bumpTex, uv).r; // 0..1
-      pos += normal * (h - 0.5) * bumpScale; // push/pull
-      vec4 wp = modelMatrix * vec4(pos,1.0);
-      vPos = wp.xyz;
-      gl_Position = projectionMatrix * viewMatrix * wp;
-    }
-  `,
-  fragmentShader: `
-    precision highp float;
-    uniform sampler2D dayTex; uniform sampler2D nightTex; uniform sampler2D specTex;
-    uniform vec3 lightDir; uniform float shininess; uniform float ambientNight;
-    varying vec3 vNormal; varying vec3 vPos; varying vec2 vUv;
-    void main(){
-      vec3 N = normalize(vNormal);
-      vec3 L = normalize(lightDir);
-      vec3 V = normalize(cameraPosition - vPos);
-      float NdotL = max(dot(N, L), 0.0);
-      vec3 day = texture2D(dayTex, vUv).rgb;
-      vec3 night = texture2D(nightTex, vUv).rgb;
-      // Blend day/night with a soft terminator
-      float k = smoothstep(-0.2, 0.2, NdotL);
-      vec3 base = mix(night * ambientNight, day, k);
-      // Specular from oceans via spec map
-      float specMask = texture2D(specTex, vUv).r;
-      vec3 R = reflect(-L, N);
-      float spec = pow(max(dot(R, V), 0.0), shininess) * specMask * k;
-      vec3 color = base + vec3(spec);
-      // Gamma-ish correction
-      color = pow(color, vec3(1.0/1.8));
-      gl_FragColor = vec4(color, 1.0);
-    }
-  `,
-});
-
-const earthMesh = new THREE.Mesh(earthGeom, earthMat);
-earthGroup.add(earthMesh);
-
-// Atmosphere glow (Rayleigh-style rim)
-const atmMat = new THREE.ShaderMaterial({
-  uniforms: { glowColor: { value: new THREE.Color(0x75b6ff) }, intensity: { value: 0.6 } },
-  vertexShader: `
-    varying vec3 vNormal; varying vec3 vWorldPos;
-    void main(){
-      vNormal = normalize(normalMatrix * normal);
-      vec4 wp = modelMatrix * vec4(position*1.02, 1.0); // slightly larger
-      vWorldPos = wp.xyz;
-      gl_Position = projectionMatrix * viewMatrix * wp;
-    }
-  `,
-  fragmentShader: `
-    precision highp float; varying vec3 vNormal; varying vec3 vWorldPos;
-    uniform vec3 glowColor; uniform float intensity;
-    void main(){
-      vec3 V = normalize(cameraPosition - vWorldPos);
-      float rim = pow(1.0 - max(dot(normalize(vNormal), V), 0.0), 2.5);
-      // warm at terminator (simple hue shift)
-      float warm = smoothstep(0.2, 0.8, rim);
-      vec3 col = mix(glowColor*0.8, vec3(1.0,0.6,0.3), warm);
-      gl_FragColor = vec4(col * rim * intensity, rim*0.9);
-    }
-  `,
-  blending: THREE.AdditiveBlending, transparent: true, depthWrite: false
-});
-const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.02, 128, 64), atmMat);
-earthGroup.add(atmosphere);
-
-// Clouds layer
-const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.01, 192, 96), new THREE.MeshPhongMaterial({ map: texClouds, transparent: true, opacity: 0.9, depthWrite: true }));
-earthGroup.add(clouds);
-
-// Moon (separate group in ecliptic plane)
-const moonGroup = new THREE.Group();
-scene.add(moonGroup);
-const moonTex = texLoader.load('https://raw.githubusercontent.com/typpo/spacekit-assets/master/moon/8k_moon.jpg');
-const moon = new THREE.Mesh(
-  new THREE.SphereGeometry(MOON_RADIUS_REL, 128, 64),
-  new THREE.MeshPhongMaterial({ map: moonTex })
-);
-moon.castShadow = false; moon.receiveShadow = false;
-moonGroup.add(moon);
-
-// Sun helper (not rendered as star; we use light only). For direction UI if needed.
-const sunDirHelper = new THREE.Vector3(1,0,0);
-
-// ---------- UI Elements ----------
-const elUTC = document.getElementById('utc');
-const elObs = document.getElementById('observer');
-const elSub = document.getElementById('subsolar');
-const elAlt = document.getElementById('alt');
-const elOrbv = document.getElementById('orbv');
-
-// Buttons
-const btnClouds = document.getElementById('toggleClouds');
-const btnStars = document.getElementById('toggleStars');
-const btnHome = document.getElementById('resetView');
-const btnPerf = document.getElementById('perf');
-
-let perfMode = false;
-btnPerf.addEventListener('click', ()=>{
-  perfMode = !perfMode;
-  renderer.setPixelRatio(perfMode ? 1 : Math.min(window.devicePixelRatio, 2));
-  btnPerf.textContent = perfMode ? 'Quality Mode' : 'Perf Mode';
-});
-btnClouds.addEventListener('click', ()=>{ clouds.visible = !clouds.visible; });
-btnStars.addEventListener('click', ()=>{ stars.visible = !stars.visible; });
-btnHome.addEventListener('click', ()=>{
-  controls.target.set(0,0,0);
-  camera.position.set(0, 3.2, 5.2);
-});
-
-// ---------- Animation Loop ----------
-function update(time){
-  const now = new Date(); // use system UTC
-  // Solar position in ECI, then convert to ECEF for earth-fixed light
-  const { ra, dec, subsolarLat, subsolarLon, sunECI } = sunPosition(now);
-  const sunECEF = eciToEcef(sunECI, now);
-  // Light direction in world coordinates: since Earth is centered at origin and not rotating in ECEF here,
-  // we rotate the light into the tilted Earth frame so textures rotate correctly via GMST below.
-  // Approach: world sun dir = (tilt) * (ECEF sun dir)
-  const lightDirWorld = sunECEF.clone().applyEuler(tilt); // align with Earth tilt
-  sunLight.position.copy(lightDirWorld.clone().multiplyScalar(100));
-  earthMat.uniforms.lightDir.value.copy(lightDirWorld).normalize();
-
-  // Earth rotation: rotate earthGroup around its Y (spin axis after tilt) by GMST so that Greenwich aligns
-  const gmst = gmstDegrees(now) * DEG2RAD;
-  // Rotate so that lon=0 is under RA=GMST: spin negative GMST
-  earthMesh.rotation.set(0, -gmst, 0);
-  clouds.rotation.y = -gmst * 1.0027 + time*0.00002; // slight drift
-
-  // Atmosphere faces camera a bit better if we keep its rotation similar
-  atmosphere.rotation.copy(earthMesh.rotation);
-
-  // Moon position (mean circular orbit around ecliptic plane with inclination)
-  const jd = julianDay(now);
-  const daysSinceJ2000 = jd - 2451545.0;
-  const moonMeanAnom = 2*Math.PI * (daysSinceJ2000 / MOON_SIDEREAL_DAYS); // rad
-  const r = MOON_DISTANCE_REL;
-  let mx = r * Math.cos(moonMeanAnom);
-  let my = r * Math.sin(moonMeanAnom);
-  let mz = 0;
-  // incline by MOON_INCLINATION about x-axis
-  const ci = Math.cos(MOON_INCLINATION), si = Math.sin(MOON_INCLINATION);
-  const my2 = my*ci - mz*si; const mz2 = my*si + mz*ci;
-  const moonPosEcl = new THREE.Vector3(mx, my2, mz2);
-  // rotate into Earth tilt frame to keep consistency
-  moonGroup.position.copy(moonPosEcl.applyEuler(tilt));
-  moon.position.set(0,0,0); // moon mesh centered in its group
-  // Tidal lock: make moon face Earth (its +Z toward Earth)
-  moon.lookAt(new THREE.Vector3().sub(moonGroup.position));
-
-  // HUD values
-  elUTC.textContent = now.toISOString().slice(0,19).replace('T',' ')+" UTC";
-  const sub = cameraSubpoint(camera);
-  elObs.textContent = `${fmtLat(sub.lat)}, ${fmtLon(sub.lon)}`;
-  elSub.textContent = `${fmtLat(subsolarLat)}, ${fmtLon(subsolarLon)}`;
-  const distUnits = camera.position.length();
-  const altKm = Math.max(0, distUnits * KM_PER_UNIT - EARTH_RADIUS_KM);
-  elAlt.textContent = `${f2(altKm)} km`;
-  elOrbv.textContent = `${f3(orbitalVelocityKmPerSec(altKm))} km/s`;
-
-  controls.update();
-  renderer.render(scene, camera);
-  requestAnimationFrame(update);
-}
-requestAnimationFrame(update);
-
-// Resize
-addEventListener('resize', ()=>{ camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
-
-// ---------- Notes ----------
-// • To host entirely self-contained (no external URLs), download textures and inline as data: URIs, and inline three.js.
-// • Replace texture URLs above with your GitHub raw URLs for maximum control and 8K assets.
-// • If 8K is too heavy on mobile, use the Perf Mode toggle. You can also reduce geometry segment counts.
-</script>
+    <script>
+        // Main simulation script
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Three.js
+            const scene = new THREE.Scene();
+            const container = document.getElementById('container');
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+            
+            // Camera setup
+            const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 0, 5);
+            
+            // Orbit controls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 1.5;
+            controls.maxDistance = 15;
+            
+            // Create Earth
+            const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
+            
+            // Earth material with placeholder textures
+            const earthMaterial = new THREE.MeshPhongMaterial({
+                color: 0x2233ff,
+                specular: 0x333333,
+                shininess: 15,
+            });
+            
+            const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+            scene.add(earth);
+            
+            // Add clouds layer
+            const cloudGeometry = new THREE.SphereGeometry(1.005, 64, 64);
+            const cloudMaterial = new THREE.MeshPhongMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.3,
+                depthWrite: false
+            });
+            
+            const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+            scene.add(clouds);
+            
+            // Create atmosphere
+            const atmosphereGeometry = new THREE.SphereGeometry(1.03, 64, 64);
+            const atmosphereMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    glowColor: { value: new THREE.Color(0x00aaff) },
+                    viewVector: { value: camera.position }
+                },
+                vertexShader: `
+                    uniform vec3 viewVector;
+                    varying float intensity;
+                    void main() {
+                        vec3 vNormal = normalize(normalMatrix * normal);
+                        vec3 vNormel = normalize(normalMatrix * viewVector);
+                        intensity = pow(0.8 - dot(vNormal, vNormel), 2.0);
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 glowColor;
+                    varying float intensity;
+                    void main() {
+                        vec3 glow = glowColor * intensity;
+                        gl_FragColor = vec4(glow, intensity * 0.5);
+                    }
+                `,
+                side: THREE.BackSide,
+                blending: THREE.AdditiveBlending,
+                transparent: true
+            });
+            
+            const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+            scene.add(atmosphere);
+            
+            // Create the Moon
+            const moonGeometry = new THREE.SphereGeometry(0.27, 32, 32);
+            const moonMaterial = new THREE.MeshPhongMaterial({
+                color: 0xaaaaaa,
+                specular: 0x333333,
+                shininess: 5
+            });
+            
+            const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+            moon.position.set(3, 0.5, 0);
+            scene.add(moon);
+            
+            // Add stars background
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsVertices = [];
+            
+            for (let i = 0; i < 10000; i++) {
+                const x = (Math.random() - 0.5) * 2000;
+                const y = (Math.random() - 0.5) * 2000;
+                const z = (Math.random() - 0.5) * 2000;
+                starsVertices.push(x, y, z);
+            }
+            
+            starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+            
+            const starsMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 1.0,
+                sizeAttenuation: false
+            });
+            
+            const starField = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(starField);
+            
+            // Lighting setup
+            const ambientLight = new THREE.AmbientLight(0x333333);
+            scene.add(ambientLight);
+            
+            const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            sunLight.position.set(5, 3, 5);
+            scene.add(sunLight);
+            
+            // Simulation variables
+            const earthStats = {
+                rotationSpeed: 0.001,
+                cloudSpeed: 0.0003,
+                moonOrbitSpeed: 0.00005
+            };
+            
+            // Clock for real-time updates
+            const clock = new THREE.Clock();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // Hide loading screen after a delay (simulating asset loading)
+            setTimeout(() => {
+                const loadingScreen = document.getElementById('loading');
+                const progressBar = document.getElementById('progress-bar');
+                
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 1;
+                    progressBar.style.width = `${progress}%`;
+                    
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        loadingScreen.style.opacity = '0';
+                        setTimeout(() => {
+                            loadingScreen.style.display = 'none';
+                        }, 1000);
+                    }
+                }, 20);
+            }, 1500);
+            
+            // Update dashboard data
+            function updateDashboard() {
+                // Update UTC time
+                const now = new Date();
+                const utcTime = now.toUTCString().split(' ')[4];
+                document.getElementById('time-display').textContent = `UTC: ${utcTime}`;
+                
+                // Simulate data updates
+                const observerLat = (Math.sin(clock.getElapsedTime() * 0.1) * 30;
+                const observerLon = (Math.cos(clock.getElapsedTime() * 0.07) * 60;
+                
+                const subsolarLat = (Math.sin(clock.getElapsedTime() * 0.03) * 23.5;
+                const subsolarLon = (Math.cos(clock.getElapsedTime() * 0.05) * 180;
+                
+                const altitude = 35786 + Math.sin(clock.getElapsedTime() * 0.2) * 1000;
+                const velocity = 3.075 + Math.sin(clock.getElapsedTime() * 0.15) * 0.1;
+                
+                // Update dashboard values
+                const dataValues = document.querySelectorAll('.data-value');
+                dataValues[0].textContent = `${observerLat.toFixed(3)}°N, ${observerLon.toFixed(3)}°E`;
+                dataValues[1].textContent = `${subsolarLat.toFixed(3)}°N, ${subsolarLon.toFixed(3)}°E`;
+                dataValues[2].innerHTML = `${Math.round(altitude).toLocaleString()}<span class="data-unit">km</span>`;
+                dataValues[3].innerHTML = `${velocity.toFixed(3)}<span class="data-unit">km/s</span>`;
+                dataValues[4].innerHTML = `${(23.5 + Math.sin(clock.getElapsedTime() * 0.1) * 5).toFixed(1)}<span class="data-unit">°</span>`;
+                dataValues[5].innerHTML = `${(1361 + Math.sin(clock.getElapsedTime() * 0.2) * 10).toFixed(0)}<span class="data-unit">W/m²</span>`;
+            }
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                const elapsedTime = clock.getElapsedTime();
+                
+                // Rotate Earth
+                earth.rotation.y += earthStats.rotationSpeed;
+                
+                // Rotate clouds slightly faster
+                clouds.rotation.y += earthStats.cloudSpeed;
+                
+                // Move Moon in orbit
+                moon.position.x = Math.cos(elapsedTime * earthStats.moonOrbitSpeed) * 4;
+                moon.position.z = Math.sin(elapsedTime * earthStats.moonOrbitSpeed) * 4;
+                
+                // Update atmosphere shader
+                atmosphereMaterial.uniforms.viewVector.value = camera.position;
+                
+                // Update dashboard
+                updateDashboard();
+                
+                // Update controls
+                controls.update();
+                
+                // Render scene
+                renderer.render(scene, camera);
+            }
+            
+            // Start animation
+            animate();
+        });
+    </script>
 </body>
 </html>
