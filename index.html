@@ -324,12 +324,14 @@
             controls.minDistance = 1.5;
             controls.maxDistance = 15;
             
+            const textureLoader = new THREE.TextureLoader();
+
             // Create Earth
             const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
             
-            // Earth material with placeholder textures
+            // Earth material with a new, reliable texture source
             const earthMaterial = new THREE.MeshPhongMaterial({
-                color: 0x2233ff,
+                map: textureLoader.load('https://s3-us-west-2.amazonaws.com/s.cdpn.io/141228/earthmap1k.jpg'),
                 specular: 0x333333,
                 shininess: 15,
             });
@@ -340,7 +342,7 @@
             // Add clouds layer
             const cloudGeometry = new THREE.SphereGeometry(1.005, 64, 64);
             const cloudMaterial = new THREE.MeshPhongMaterial({
-                color: 0xffffff,
+                map: textureLoader.load('https://s3-us-west-2.amazonaws.com/s.cdpn.io/141228/earthcloudmap.jpg'),
                 transparent: true,
                 opacity: 0.3,
                 depthWrite: false
@@ -385,7 +387,7 @@
             // Create the Moon
             const moonGeometry = new THREE.SphereGeometry(0.27, 32, 32);
             const moonMaterial = new THREE.MeshPhongMaterial({
-                color: 0xaaaaaa,
+                map: textureLoader.load('https://s3-us-west-2.amazonaws.com/s.cdpn.io/141228/moonmap4k.jpg'),
                 specular: 0x333333,
                 shininess: 5
             });
@@ -469,11 +471,11 @@
                 document.getElementById('time-display').textContent = `UTC: ${utcTime}`;
                 
                 // Simulate data updates
-                const observerLat = (Math.sin(clock.getElapsedTime() * 0.1) * 30;
-                const observerLon = (Math.cos(clock.getElapsedTime() * 0.07) * 60;
+                const observerLat = (Math.sin(clock.getElapsedTime() * 0.1) * 30);
+                const observerLon = (Math.cos(clock.getElapsedTime() * 0.07) * 60);
                 
-                const subsolarLat = (Math.sin(clock.getElapsedTime() * 0.03) * 23.5;
-                const subsolarLon = (Math.cos(clock.getElapsedTime() * 0.05) * 180;
+                const subsolarLat = (Math.sin(clock.getElapsedTime() * 0.03) * 23.5);
+                const subsolarLon = (Math.cos(clock.getElapsedTime() * 0.05) * 180);
                 
                 const altitude = 35786 + Math.sin(clock.getElapsedTime() * 0.2) * 1000;
                 const velocity = 3.075 + Math.sin(clock.getElapsedTime() * 0.15) * 0.1;
